@@ -56,8 +56,8 @@ services:
     build:
       context: .
       dockerfile: php.dockerfile
-      # args:
-      #   PHP_VERSION: 7.2-fpm-alpine
+      args:
+        PHP_VERSION: ${PHP_VERSION:-7.4-fpm-alpine}
     container_name: php
     volumes:
       - ${HOST:-./src}:/var/www/html
@@ -104,8 +104,8 @@ services:
     build:
       context: .
       dockerfile: envoy.dockerfile
-      # args:
-      #   PHP_VERSION: 7.2-fpm-alpine
+      args:
+        PHP_VERSION: ${PHP_VERSION:-7.4-fpm-alpine}
     container_name: envoy
     volumes:
       - ${HOST:-./src}:/var/www/html
@@ -115,3 +115,15 @@ services:
     networks:
       - laravel
     entrypoint: ["envoy"]
+
+  cron:
+    build:
+      context: .
+      dockerfile: cron.dockerfile
+      args:
+        PHP_VERSION: ${PHP_VERSION:-7.4-fpm-alpine}
+    container_name: cron
+    volumes:
+      - ${HOST:-./src}:/var/www/html
+    networks:
+      - laravel
