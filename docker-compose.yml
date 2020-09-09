@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 networks:
   laravel:
@@ -8,9 +8,9 @@ services:
     image: nginx:stable-alpine
     container_name: nginx
     ports:
-      - "8080:80"
+      - "${SITE_PORT:-8000}:80"
     volumes:
-      - ./src:/var/www/html:delegated
+      - ${HOST:-./src}:/var/www/html
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - php
@@ -19,19 +19,36 @@ services:
       - laravel
 
   mysql:
-    image: mysql:5.7.29
+    image: mysql:${MYSQL_VERSION:-5.7.29}
     container_name: mysql
     restart: unless-stopped
     tty: true
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     environment:
-      MYSQL_DATABASE: homestead
-      MYSQL_USER: homestead
-      MYSQL_PASSWORD: secret
-      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: ${LARAVEL_DB:-homestead}
+      MYSQL_USER: ${LARAVEL_USER:-homestead}
+      MYSQL_PASSWORD: ${LARAVEL_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secret}
       SERVICE_TAGS: dev
       SERVICE_NAME: mysql
+    networks:
+      - laravel
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    # command: bash -c "sed -i 's,^post_max_size =.*$,post_max_size = 2048M,' php.ini"
+    restart: always
+    environment:
+      # PMA_ARBITRARY: 1
+      PMA_HOST: ${PMA_DB_ENGINE:-mysql}
+      MYSQL_USER: ${LARAVEL_USER:-homestead}
+      MYSQL_PASSWORD: ${LARAVEL_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secret}
+    ports:
+      - "${PMA_PORT:-8080}:80"
+    depends_on:
+      - "${PMA_DB_ENGINE:-mysql}"
     networks:
       - laravel
 
@@ -39,9 +56,11 @@ services:
     build:
       context: .
       dockerfile: php.dockerfile
+      # args:
+      #   PHP_VERSION: 7.2-fpm-alpine
     container_name: php
     volumes:
-      - ./src:/var/www/html:delegated
+      - ${HOST:-./src}:/var/www/html
     ports:
       - "9000:9000"
     networks:
@@ -51,21 +70,21 @@ services:
     image: composer:latest
     container_name: composer
     volumes:
-      - ./src:/var/www/html
+      - ${HOST:-./src}:/var/www/html
     working_dir: /var/www/html
     depends_on:
       - php
     networks:
       - laravel
-    entrypoint: ['composer', '--ignore-platform-reqs'] # Install without other php modules required
+    entrypoint: ["composer", "--ignore-platform-reqs"] # Install without other php modules required
 
   npm:
     image: node:13.7
     container_name: npm
     volumes:
-      - ./src:/var/www/html
+      - ${HOST:-./src}:/var/www/html
     working_dir: /var/www/html
-    entrypoint: ['npm']
+    entrypoint: ["npm"]
 
   artisan:
     build:
@@ -73,10 +92,26 @@ services:
       dockerfile: php.dockerfile
     container_name: artisan
     volumes:
-      - ./src:/var/www/html:delegated
+      - ${HOST:-./src}:/var/www/html
     depends_on:
       - mysql
     working_dir: /var/www/html
-    entrypoint: ['php', '/var/www/html/artisan']
+    entrypoint: ["php", "/var/www/html/artisan"]
     networks:
       - laravel
+
+  envoy:
+    build:
+      context: .
+      dockerfile: envoy.dockerfile
+      # args:
+      #   PHP_VERSION: 7.2-fpm-alpine
+    container_name: envoy
+    volumes:
+      - ${HOST:-./src}:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - laravel
+    entrypoint: ["envoy"]

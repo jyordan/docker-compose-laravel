@@ -1,4 +1,5 @@
-FROM php:7.4-fpm-alpine
+ARG PHP_VERSION=7.4-fpm-alpine
+FROM "php:${PHP_VERSION}"
 
 WORKDIR /var/www/html
 
